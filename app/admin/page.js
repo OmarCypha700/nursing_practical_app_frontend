@@ -19,7 +19,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     api
-      .get("/exams/admin/dashboard-stats/")
+      .get("/exams/dashboard-stats/")
       .then((res) => {
         setStats(res.data);
         setLoading(false);

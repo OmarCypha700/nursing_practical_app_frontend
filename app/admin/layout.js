@@ -18,6 +18,7 @@ import {
   Menu,
   LogOut,
   ChevronRight,
+  Award
 } from "lucide-react";
 
 const navigation = [
@@ -45,6 +46,11 @@ const navigation = [
     name: "Programs",
     href: "/admin/programs",
     icon: FileText,
+  },
+  {
+    name: "Grades",
+    href: "/admin/grades",
+    icon: Award,
   },
 ];
 

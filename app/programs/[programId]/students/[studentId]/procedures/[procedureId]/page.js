@@ -93,7 +93,7 @@
 //         <h1 className="text-xl text-center font-bold uppercase">
 //           {procedure.name}
 //         </h1>
-        
+
 //         {procedure.examiner_role && (
 //           <Badge className="hidden md:block bg-purple-500 text-white">
 //             Examiner {procedure.examiner_role}
@@ -225,8 +225,10 @@ export default function ProcedureStepsPage() {
     if (!programId || !procedureId || !studentId) return;
 
     // Fetch procedure details
-    const fetchProcedure = api.get(`/exams/students/${studentId}/procedures/${procedureId}/`);
-    
+    const fetchProcedure = api.get(
+      `/exams/students/${studentId}/procedures/${procedureId}/`
+    );
+
     // Fetch student details
     const fetchStudent = api.get(`/exams/students/${studentId}/`);
 
@@ -305,11 +307,7 @@ export default function ProcedureStepsPage() {
     <div className="p-4 max-w-3xl mx-auto">
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -336,9 +334,7 @@ export default function ProcedureStepsPage() {
       </div>
 
       {/* Procedure Title */}
-      <h1 className="text-xl font-bold uppercase mb-4">
-        {procedure.name}
-      </h1>
+      <h1 className="text-xl font-bold uppercase mb-4">{procedure.name}</h1>
 
       {/* Completion Alert */}
       {isComplete && (
@@ -348,7 +344,8 @@ export default function ProcedureStepsPage() {
             You have completed scoring all steps for this procedure.
             {completionStatus?.status === "scored" && (
               <span className="block mt-1 font-semibold">
-                Both examiners have completed scoring. Reconciliation is now available.
+                Both examiners have completed scoring. Reconciliation is now
+                available.
               </span>
             )}
           </AlertDescription>
@@ -392,7 +389,9 @@ export default function ProcedureStepsPage() {
                         htmlFor={inputId}
                         className="flex flex-col items-center cursor-pointer select-none"
                       >
-                        <span className="text-xs font-semibold mb-1">{val}</span>
+                        <span className="text-xs font-semibold mb-1">
+                          {val}
+                        </span>
                         <input
                           id={inputId}
                           type="radio"
@@ -410,9 +409,7 @@ export default function ProcedureStepsPage() {
 
               {/* Autosave feedback */}
               {savingStep === step.id && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Saving...
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Saving...</p>
               )}
 
               <Separator className="my-3 bg-gray-300" />

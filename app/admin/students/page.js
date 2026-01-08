@@ -49,6 +49,7 @@ import {
   Upload,
   UserCheck,
   UserX,
+  FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,9 +66,15 @@ export default function StudentsPage() {
     index_number: "",
     full_name: "",
     program_id: "",
-    is_active: true,
+    is_active: false,
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const [exportFormat, setExportFormat] = useState("excel");
+  const [importDialog, setImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -95,7 +102,10 @@ export default function StudentsPage() {
 
     try {
       if (editingStudent) {
-        await api.patch(`/exams/admin/students/${editingStudent.id}/`, formData);
+        await api.patch(
+          `/exams/admin/students/${editingStudent.id}/`,
+          formData
+        );
         toast.success("Student updated successfully");
       } else {
         await api.post("/exams/admin/students/", formData);
@@ -139,6 +149,7 @@ export default function StudentsPage() {
     try {
       await api.post(`/exams/admin/students/${id}/toggle_active/`);
       toast.success("Status updated successfully");
+      console.log("Toggled active status for student ID:", id);
       fetchData();
     } catch (err) {
       console.error(err);
@@ -146,16 +157,120 @@ export default function StudentsPage() {
     }
   };
 
-  const handleExport = () => {
-    // Implement export functionality
-    toast.info("Export functionality coming soon");
+  const handleExport = async () => {
+    try {
+      const params = {
+        export: exportFormat, // Changed to 'export' parameter
+      };
+
+      if (filterProgram !== "all") {
+        params.program_id = filterProgram;
+      }
+
+      // Use the viewset URL with export parameter
+      const response = await api.get("/exams/admin/students/", {
+        params,
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+
+      const extension = exportFormat === "excel" ? "xlsx" : exportFormat;
+      link.setAttribute("download", `students.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success(
+        `Students exported successfully as ${exportFormat.toUpperCase()}`
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed");
+    }
   };
 
-  const handleImport = (e) => {
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await api.get("/exams/students/template/", {
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "students_import_template.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success("Template downloaded successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to download template");
+    }
+  };
+
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Implement import functionality
-      toast.info("Import functionality coming soon");
+      const validTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "text/csv",
+      ];
+
+      if (!validTypes.includes(file.type) && !file.name.endsWith(".csv")) {
+        toast.error("Please upload a valid Excel (.xlsx) or CSV file");
+        return;
+      }
+
+      setImportFile(file);
+      setImportDialog(true);
+    }
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importFile) {
+      toast.error("Please select a file");
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+
+      const response = await api.post("/exams/students/import/", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setImportResult(response.data);
+
+      if (response.data.errors === 0) {
+        toast.success(
+          `Import successful! Created: ${response.data.created}, Updated: ${response.data.updated}`
+        );
+        setTimeout(() => {
+          setImportDialog(false);
+          setImportFile(null);
+          setImportResult(null);
+          fetchData();
+        }, 3000);
+      } else {
+        toast.warning(`Import completed with ${response.data.errors} errors`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Import failed");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -185,7 +300,7 @@ export default function StudentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row gap-2 items-center justify-between">
+      {/* <div className="flex flex-col md:flex-row gap-2 items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Students</h2>
           <p className="text-muted-foreground">
@@ -212,7 +327,70 @@ export default function StudentsPage() {
             className="hidden"
             onChange={handleImport}
           />
-          <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+          <Button
+            onClick={() => {
+              resetForm();
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Student
+          </Button>
+        </div>
+      </div> */}
+
+      <div className="flex flex-col justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Students</h2>
+          <p className="text-muted-foreground">
+            Manage student records and enrollments
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Export Dropdown */}
+          <Select value={exportFormat} onValueChange={setExportFormat}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="csv">CSV</SelectItem>
+              <SelectItem value="excel">Excel</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+
+          <Button variant="outline" onClick={handleDownloadTemplate}>
+            <FileDown className="mr-2 h-4 w-4" />
+            Template
+          </Button>
+
+          <label htmlFor="import-file">
+            <Button variant="outline" asChild>
+              <span>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </span>
+            </Button>
+          </label>
+          <input
+            id="import-file"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
+          <Button
+            onClick={() => {
+              resetForm();
+              setDialogOpen(true);
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Student
           </Button>
@@ -413,18 +591,97 @@ export default function StudentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the student record. This action cannot
-              be undone.
+              This will permanently delete the student record. This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialog} onOpenChange={setImportDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import Students</DialogTitle>
+            <DialogDescription>
+              Upload an Excel or CSV file to import student records
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {importFile && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Selected file:</p>
+                <p className="text-sm text-muted-foreground">
+                  {importFile.name}
+                </p>
+              </div>
+            )}
+
+            {importResult && (
+              <div
+                className={`p-4 rounded-lg ${
+                  importResult.errors === 0 ? "bg-green-50" : "bg-yellow-50"
+                }`}
+              >
+                <p className="font-semibold mb-2">Import Results:</p>
+                <ul className="text-sm space-y-1">
+                  <li>✓ Created: {importResult.created}</li>
+                  <li>✓ Updated: {importResult.updated}</li>
+                  {importResult.errors > 0 && (
+                    <li className="text-red-600">
+                      ✗ Errors: {importResult.errors}
+                    </li>
+                  )}
+                </ul>
+
+                {importResult.error_details &&
+                  importResult.error_details.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium mb-1">Error Details:</p>
+                      <ul className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                        {importResult.error_details.map((error, idx) => (
+                          <li key={idx} className="text-red-600">
+                            {error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setImportDialog(false);
+                setImportFile(null);
+                setImportResult(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImportSubmit}
+              disabled={importing || !importFile}
+            >
+              {importing ? "Importing..." : "Import"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

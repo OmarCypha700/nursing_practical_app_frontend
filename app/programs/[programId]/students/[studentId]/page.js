@@ -1,110 +1,3 @@
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { useParams, useRouter } from "next/navigation";
-// import { api } from "@/lib/api";
-// import { Badge } from "@/components/ui/badge";
-// import { Button } from "@/components/ui/button";
-// import { ArrowLeft } from "lucide-react";
-
-// export default function ProceduresPage() {
-//   const { programId, studentId } = useParams();
-//   const router = useRouter();
-//   const [procedures, setProcedures] = useState([]);
-
-//   useEffect(() => {
-//     if (!programId || !studentId) return;
-
-//     api
-//       .get(`/exams/programs/${programId}/procedures/`, {
-//         params: { student_id: studentId }
-//       })
-//       .then((res) => setProcedures(res.data))
-//       .catch((err) => console.error(err));
-//   }, [programId, studentId]);
-
-//   const getStatusConfig = (status) => {
-//     const configs = {
-//       pending: {
-//         label: "Pending",
-//         className: "bg-yellow-500 hover:bg-yellow-600 text-white"
-//       },
-//       scored: {
-//         label: "Ready to Reconcile",
-//         className: "bg-blue-500 hover:bg-blue-600 text-white"
-//       },
-//       reconciled: {
-//         label: "Reconciled",
-//         className: "bg-green-500 hover:bg-green-600 text-white"
-//       }
-//     };
-//     return configs[status] || configs.pending;
-//   };
-
-//   const handleProcedureClick = (proc) => {
-//     // If reconciled, maybe show view-only or prevent access
-//     if (proc.status === "reconciled") {
-//       alert("This procedure has already been reconciled.");
-//       return;
-//     }
-
-//     // Go to scoring page for pending or scored
-//     router.push(
-//       `/programs/${programId}/students/${studentId}/procedures/${proc.id}`
-//     );
-//   };
-
-//   return (
-//     <div className="p-4 max-w-3xl mx-auto">
-//       <div className="flex items-center mb-4 gap-4">
-//         <Button variant="ghost" size="sm" onClick={() => router.back()}>
-//           <ArrowLeft className="h-4 w-4 mr-2" />
-//           Back
-//         </Button>
-//         <h1 className="text-2xl font-bold mb-4">Select Procedure ()</h1>
-//       </div>
-
-//       <div className="space-y-3">
-//         {procedures.map((proc) => {
-//           const statusConfig = getStatusConfig(proc.status);
-
-//           return (
-//             <div
-//               key={proc.id}
-//               className="flex items-center gap-3 w-full"
-//             >
-//               <button
-//                 onClick={() => handleProcedureClick(proc)}
-//                 className="flex-1 flex-col md:flex-row text-left uppercase font-semibold rounded-md bg-gray-200 px-4 py-3 hover:bg-gray-300 flex items-center justify-between"
-//                 disabled={proc.status === "reconciled"}
-//               >
-//                 <span>{proc.name}</span>
-//                 <Badge className={statusConfig.className}>
-//                   {statusConfig.label}
-//                 </Badge>
-//               </button>
-
-//               {/* Show Reconcile button ONLY for "scored" procedures */}
-//               {proc.status === "scored" && (
-//                 <Button
-//                   onClick={() =>
-//                     router.push(
-//                       `/programs/${programId}/students/${studentId}/procedures/${proc.id}/reconcile`
-//                     )
-//                   }
-//                   className="bg-blue-600 hover:bg-blue-700"
-//                 >
-//                   Reconcile
-//                 </Button>
-//               )}
-//             </div>
-//           );
-//         })}
-//       </div>
-//     </div>
-//   );
-// }
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -112,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { User, ArrowLeft, RefreshCcw } from "lucide-react";
+import { User, ArrowLeft, RefreshCcw, Search, X } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -127,6 +21,7 @@ export default function ProceduresPage() {
   const [procedures, setProcedures] = useState([]);
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!programId || !studentId) return;
@@ -174,9 +69,7 @@ export default function ProceduresPage() {
 
   const handleProcedureClick = (proc) => {
     if (proc.status === "reconciled") {
-      // alert("This procedure has already been reconciled.");
-         toast.info("This procedure has already been reconciled.");
-
+      toast.info("This procedure has already been reconciled.");
       return;
     }
 
@@ -184,6 +77,21 @@ export default function ProceduresPage() {
       `/programs/${programId}/students/${studentId}/procedures/${proc.id}`
     );
   };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+  };
+
+  // Filter procedures based on search query
+  const filteredProcedures = procedures.filter((proc) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      proc.name.toLowerCase().includes(query) ||
+      proc.status.toLowerCase().includes(query)
+    );
+  });
 
   if (loading) {
     return (
@@ -217,86 +125,106 @@ export default function ProceduresPage() {
         </div>
       )}
 
-      <div className="flex item-center gap-4">
+      <div className="flex items-center gap-4 mb-4">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
 
-        <h1 className="text-2xl uppercase font-bold mb-4">Select Procedure</h1>
+        <h1 className="text-2xl uppercase font-bold">Select Procedure</h1>
       </div>
 
       <Separator className="mb-4" />
 
-      <div className="space-y-3">
-        {procedures.map((proc) => {
-          const statusConfig = getStatusConfig(proc.status);
-
-          return (
-            // <div key={proc.id} className="flex items-center gap-3 w-full">
-            //   <button
-            //     onClick={() => handleProcedureClick(proc)}
-            //     className="flex-1 text-left uppercase font-semibold rounded-md bg-gray-200 px-4 py-3 hover:bg-gray-300 flex items-center justify-between"
-            //     disabled={proc.status === "reconciled"}
-            //   >
-            //     <span>{proc.name}</span>
-            //     <Badge className={statusConfig.className}>
-            //       {statusConfig.label}
-            //     </Badge>
-            //   </button>
-
-            //   {proc.status === "scored" && (
-            //     <Button
-            //       size="sm"
-            //       onClick={() =>
-            //         router.push(
-            //           `/programs/${programId}/students/${studentId}/procedures/${proc.id}/reconcile`
-            //         )
-            //       }
-            //       className="bg-blue-600 hover:bg-blue-700"
-            //     >
-            //       Reconcile
-            //     </Button>
-            //   )}
-            // </div>
-            <Card
-              key={proc.id}
-              // onClick={() => handleProcedureClick(proc)}
-              className="cursor-pointer transition hover:shadow-md hover:border-primary"
-              // disabled={proc.status === "reconciled"}
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search procedures by name or status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              <CardHeader className="space-y-3">
-                <div className="flex items-center justify-between">
-                  {/* <Icon className="h-6 w-6 text-primary" /> */}
-                  <Badge variant="secondary" className={statusConfig.className}>
-                    {statusConfig.label}
-                  </Badge>
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        
+        {/* Search Results Counter */}
+        {searchQuery && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Found {filteredProcedures.length} of {procedures.length} procedure
+            {procedures.length !== 1 ? "s" : ""}
+          </p>
+        )}
+      </div>
 
-                  {proc.status === "scored" && (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        router.push(
-                          `/programs/${programId}/students/${studentId}/procedures/${proc.id}/reconcile`
-                        )
-                      }
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      Reconcile <RefreshCcw className="h-4 w-4 ml-2" />
-                    </Button>
-                  )}
-                </div>
+      {/* Procedures List */}
+      <div className="space-y-3">
+        {filteredProcedures.length === 0 ? (
+          <Card className="p-8">
+            <div className="text-center text-muted-foreground">
+              {searchQuery ? (
+                <>
+                  <p className="mb-2">No procedures found matching "{searchQuery}"</p>
+                  <Button variant="link" onClick={clearSearch}>
+                    Clear search
+                  </Button>
+                </>
+              ) : (
+                <p>No procedures available</p>
+              )}
+            </div>
+          </Card>
+        ) : (
+          filteredProcedures.map((proc) => {
+            const statusConfig = getStatusConfig(proc.status);
 
-                <CardTitle 
-                onClick={() => handleProcedureClick(proc)}
-                className="text-lg uppercase cursor-pointer underline"
-                disabled={proc.status === "reconciled"}>
-                  {proc.name}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          );
-        })}
+            return (
+              <Card
+                key={proc.id}
+                className="cursor-pointer transition hover:shadow-md hover:border-primary"
+              >
+                <CardHeader className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className={statusConfig.className}>
+                      {statusConfig.label}
+                    </Badge>
+
+                    {proc.status === "scored" && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(
+                            `/programs/${programId}/students/${studentId}/procedures/${proc.id}/reconcile`
+                          );
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Reconcile <RefreshCcw className="h-4 w-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
+
+                  <CardTitle 
+                    onClick={() => handleProcedureClick(proc)}
+                    className="text-lg uppercase cursor-pointer underline"
+                  >
+                    {proc.name}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            );
+          })
+        )}
       </div>
     </div>
   );

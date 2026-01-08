@@ -41,14 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
-  Eye,
-  ListOrdered,
-} from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ListOrdered, Download, FileDown, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ProceduresPage() {
@@ -66,6 +59,12 @@ export default function ProceduresPage() {
     total_score: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const [exportFormat, setExportFormat] = useState("excel");
+  const [importDialog, setImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -87,13 +86,128 @@ export default function ProceduresPage() {
     }
   };
 
+  // Export handler
+  const handleExport = async () => {
+    try {
+      const params = {
+        export: exportFormat,
+      };
+
+      if (filterProgram !== "all") {
+        params.program_id = filterProgram;
+      }
+
+      const response = await api.get("/exams/admin/procedures/", {
+        params,
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+
+      const extension = exportFormat === "excel" ? "xlsx" : exportFormat;
+      const filename =
+        exportFormat === "excel"
+          ? "procedures_and_steps"
+          : "procedures_and_steps";
+      link.setAttribute("download", `${filename}.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success(`Procedures exported successfully`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed");
+    }
+  };
+
+  // Download template
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await api.get("/exams/procedures/template/", {
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "procedures_import_template.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success("Template downloaded successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to download template");
+    }
+  };
+
+  // Import handlers
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImportFile(file);
+      setImportDialog(true);
+    }
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importFile) {
+      toast.error("Please select a file");
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+
+      const response = await api.post("/exams/procedures/import/", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setImportResult(response.data);
+
+      if (response.data.errors === 0) {
+        toast.success(
+          `Import successful! Procedures: ${response.data.procedures_created} created, ` +
+            `${response.data.procedures_updated} updated. Steps: ${response.data.steps_created} created, ` +
+            `${response.data.steps_updated} updated.`
+        );
+        setTimeout(() => {
+          setImportDialog(false);
+          setImportFile(null);
+          setImportResult(null);
+          fetchData();
+        }, 3000);
+      } else {
+        toast.warning(`Import completed with ${response.data.errors} errors`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
       if (editingProcedure) {
-        await api.patch(`/exams/admin/procedures/${editingProcedure.id}/`, formData);
+        await api.patch(
+          `/exams/admin/procedures/${editingProcedure.id}/`,
+          formData
+        );
         toast.success("Procedure updated successfully");
       } else {
         await api.post("/exams/admin/procedures/", formData);
@@ -114,7 +228,7 @@ export default function ProceduresPage() {
     setEditingProcedure(procedure);
     setFormData({
       name: procedure.name,
-      program_id: procedure.program.id,
+      program_id: procedure.program_id, // Now using program_id from serializer
       total_score: procedure.total_score,
     });
     setDialogOpen(true);
@@ -147,7 +261,7 @@ export default function ProceduresPage() {
       .includes(searchQuery.toLowerCase());
     const matchesProgram =
       filterProgram === "all" ||
-      procedure.program.id === parseInt(filterProgram);
+      procedure.program_id === parseInt(filterProgram);
     return matchesSearch && matchesProgram;
   });
 
@@ -158,22 +272,63 @@ export default function ProceduresPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row justify-between gap-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Procedures</h2>
           <p className="text-muted-foreground">
             Manage assessment procedures and their steps
           </p>
         </div>
-        <Button
-          onClick={() => {
-            resetForm();
-            setDialogOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Procedure
-        </Button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Export Dropdown */}
+          <Select value={exportFormat} onValueChange={setExportFormat}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="csv">CSV</SelectItem>
+              <SelectItem value="excel">Excel</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+
+          <Button variant="outline" onClick={handleDownloadTemplate}>
+            <FileDown className="mr-2 h-4 w-4" />
+            Template
+          </Button>
+
+          <label htmlFor="import-file">
+            <Button variant="outline" asChild>
+              <span>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </span>
+            </Button>
+          </label>
+          <input
+            id="import-file"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
+          <Button
+            onClick={() => {
+              resetForm();
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Procedure
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -300,7 +455,7 @@ export default function ProceduresPage() {
             <div className="space-y-2">
               <Label htmlFor="program">Program</Label>
               <Select
-                value={formData.program_id} // .toString()
+                value={formData.program_id.toString()}
                 onValueChange={(value) =>
                   setFormData({ ...formData, program_id: parseInt(value) })
                 }
@@ -354,6 +509,66 @@ export default function ProceduresPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Import Dialog */}
+      <Dialog open={importDialog} onOpenChange={setImportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Procedures</DialogTitle>
+            <DialogDescription>
+              Upload an Excel or CSV file with procedures and steps
+            </DialogDescription>
+          </DialogHeader>
+          
+          {importFile && (
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground mb-2">
+                Selected file: <span className="font-medium">{importFile.name}</span>
+              </p>
+              
+              {importResult && (
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-2">Import Results:</h4>
+                  <ul className="text-sm space-y-1">
+                    <li>Procedures created: {importResult.procedures_created}</li>
+                    <li>Procedures updated: {importResult.procedures_updated}</li>
+                    <li>Steps created: {importResult.steps_created}</li>
+                    <li>Steps updated: {importResult.steps_updated}</li>
+                    <li className="text-destructive">Errors: {importResult.errors}</li>
+                  </ul>
+                  
+                  {importResult.error_details && importResult.error_details.length > 0 && (
+                    <div className="mt-3">
+                      <h5 className="font-medium text-sm mb-1">Error Details:</h5>
+                      <ul className="text-xs space-y-1 text-destructive max-h-40 overflow-y-auto">
+                        {importResult.error_details.map((error, idx) => (
+                          <li key={idx}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setImportDialog(false);
+                setImportFile(null);
+                setImportResult(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleImportSubmit} disabled={importing || !importFile}>
+              {importing ? "Importing..." : "Import"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Dialog */}
       <AlertDialog
         open={deleteDialog.open}
@@ -369,7 +584,10 @@ export default function ProceduresPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -152,7 +152,7 @@ export default function ProgramsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row justify-between gap-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Programs</h2>
           <p className="text-muted-foreground">
