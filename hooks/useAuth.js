@@ -10,20 +10,23 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
+    const storedToken = localStorage.getItem("access_token");
     if (storedToken) {
       setToken(storedToken);
     }
     setLoading(false);
   }, []);
 
-  const login = (newToken) => {
-    localStorage.setItem("token", newToken);
-    setToken(newToken);
+  const login = (accessToken, refreshToken) => {
+    localStorage.setItem("access_token", accessToken);
+    localStorage.setItem("refresh_token", refreshToken);
+    setToken(accessToken);
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
     setToken(null);
     router.push("/");
   };
