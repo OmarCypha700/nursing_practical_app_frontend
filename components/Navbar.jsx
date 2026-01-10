@@ -38,7 +38,7 @@ export default function Navbar() {
   const getUserData = async () => {
     try {
       const res = await api.get("/accounts/me/");
-      setUsername(res.data.username);
+      setUsername(res.data.first_name + " " + res.data.last_name);
     } catch (err) {
       console.error("Failed to check user data", err);
     }
