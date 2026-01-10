@@ -56,7 +56,7 @@ export default function ProgramsPage() {
 
   const fetchPrograms = async () => {
     try {
-      const res = await api.get("/exams/programs/");
+      const res = await api.get("/exams/admin/programs/");
       setPrograms(res.data);
       
       // Fetch stats for each program
@@ -93,10 +93,10 @@ export default function ProgramsPage() {
 
     try {
       if (editingProgram) {
-        await api.patch(`/exams/programs/${editingProgram.id}/`, formData);
+        await api.patch(`/exams/admin/programs/${editingProgram.id}/`, formData);
         toast.success("Program updated successfully");
       } else {
-        await api.post("/exams/programs/", formData);
+        await api.post("/exams/admin/programs/", formData);
         toast.success("Program created successfully");
       }
       setDialogOpen(false);
@@ -121,7 +121,7 @@ export default function ProgramsPage() {
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/exams/programs/${deleteDialog.id}/`);
+      await api.delete(`/exams/admin/programs/${deleteDialog.id}/`);
       toast.success("Program deleted successfully");
       setDeleteDialog({ open: false, id: null });
       fetchPrograms();
