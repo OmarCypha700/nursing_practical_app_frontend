@@ -166,11 +166,10 @@ export default function GradesPage() {
 
   const getGradeBadgeColor = (grade) => {
     if (grade === "N/A") return "bg-gray-500";
-    if (grade.startsWith("A")) return "bg-green-500";
-    if (grade.startsWith("B")) return "bg-blue-500";
-    if (grade.startsWith("C")) return "bg-yellow-500";
-    if (grade.startsWith("D")) return "bg-orange-500";
-    return "bg-red-500";
+    if (grade === "Distinction") return "bg-green-500";
+    if (grade === "Credit") return "bg-blue-500";
+    if (grade === "Pass") return "bg-yellow-500";
+    if (grade === "Fail") return "bg-red-500";
   };
 
   const SortIcon = ({ column }) => {
@@ -367,7 +366,7 @@ export default function GradesPage() {
                     Grade
                     <SortIcon column="grade" />
                   </TableHead>
-                  {/* <TableHead className="text-center">Progress</TableHead> */}
+                  <TableHead className="text-center">Progress</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -404,9 +403,9 @@ export default function GradesPage() {
                           {student.grade}
                         </Badge>
                       </TableCell>
-                      {/* <TableCell className="text-center text-sm">
-                        {student.reconciled_count} / {student.procedures_count}
-                      </TableCell> */}
+                      <TableCell className="text-center text-sm">
+                        {student.reconciled_count} / 4 {/*{student.procedures_count} */}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

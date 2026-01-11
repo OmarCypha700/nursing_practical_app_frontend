@@ -77,7 +77,7 @@ export default function ProgramsPage() {
               <Card
                 key={program.id}
                 onClick={() =>
-                  router.push(`/programs/${program.id}`) //router.push(`/programs/${program.id}/students`)
+                  router.push(`/programs/${program.id}`)
                 }
                 className="cursor-pointer transition hover:shadow-md hover:border-primary"
               >

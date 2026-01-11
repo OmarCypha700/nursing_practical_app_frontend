@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { User, ArrowLeft, RefreshCcw, Search, X } from "lucide-react";
+import { User, ArrowLeft, RefreshCcw, Search, X, Lock, AlertCircle } from "lucide-react";
 import {
   Card,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { toast } from "sonner";
 
 export default function ProceduresPage() {
@@ -49,6 +54,14 @@ export default function ProceduresPage() {
       });
   }, [programId, studentId]);
 
+  // Count reconciled procedures
+  const reconciledCount = useMemo(() => {
+    return procedures.filter((proc) => proc.status === "reconciled").length;
+  }, [procedures]);
+
+  // Check if limit reached
+  const limitReached = reconciledCount >= 4;
+
   const getStatusConfig = (status) => {
     const configs = {
       pending: {
@@ -68,8 +81,15 @@ export default function ProceduresPage() {
   };
 
   const handleProcedureClick = (proc) => {
+    // Check if reconciled
     if (proc.status === "reconciled") {
       toast.info("This procedure has already been reconciled.");
+      return;
+    }
+
+    // Check if limit reached and procedure is not reconciled
+    if (limitReached && proc.status !== "reconciled") {
+      toast.error("Maximum of 4 procedures can be reconciled. This procedure is locked.");
       return;
     }
 
@@ -92,6 +112,11 @@ export default function ProceduresPage() {
       proc.status.toLowerCase().includes(query)
     );
   });
+
+  // Check if a procedure should be disabled
+  const isProcedureDisabled = (proc) => {
+    return limitReached && proc.status !== "reconciled";
+  };
 
   if (loading) {
     return (
@@ -120,13 +145,19 @@ export default function ProceduresPage() {
                   Program: {student.program.name}
                 </p>
               )}
+              {/* Reconciliation count */}
+              <p className="text-sm font-medium mt-1">
+                <span className={reconciledCount >= 4 ? "text-green-600" : "text-primary"}>
+                  {reconciledCount} of 4 procedures reconciled
+                </span>
+              </p>
             </div>
           </div>
         </div>
       )}
 
       <div className="flex items-center gap-4 mb-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(`/programs/${programId}`)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -135,6 +166,17 @@ export default function ProceduresPage() {
       </div>
 
       <Separator className="mb-4" />
+
+      {/* Limit Reached Alert */}
+      {limitReached && (
+        <Alert className="mb-6 border-yellow-500 bg-yellow-50">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Maximum Procedures Reached</AlertTitle>
+          <AlertDescription>
+            This student has completed 4 reconciled procedures. All other procedures are now locked and cannot be accessed.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Search Bar */}
       <div className="mb-6">
@@ -186,19 +228,36 @@ export default function ProceduresPage() {
         ) : (
           filteredProcedures.map((proc) => {
             const statusConfig = getStatusConfig(proc.status);
+            const isDisabled = isProcedureDisabled(proc);
 
             return (
               <Card
                 key={proc.id}
-                className="cursor-pointer transition hover:shadow-md hover:border-primary"
+                className={`transition ${
+                  isDisabled
+                    ? "opacity-60 cursor-not-allowed bg-gray-50"
+                    : "cursor-pointer hover:shadow-md hover:border-primary"
+                }`}
               >
                 <CardHeader className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className={statusConfig.className}>
-                      {statusConfig.label}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className={statusConfig.className}>
+                        {statusConfig.label}
+                        {proc.status === "reconciled" && (
+                          <Lock className="h-3 w-3 ml-1" />
+                        )}
+                      </Badge>
+                      
+                      {isDisabled && (
+                        <Badge variant="destructive" className="normal-case">
+                          <Lock className="h-3 w-3 mr-1" />
+                          Locked
+                        </Badge>
+                      )}
+                    </div>
 
-                    {proc.status === "scored" && (
+                    {proc.status === "scored" && !isDisabled && (
                       <Button
                         size="sm"
                         onClick={(e) => {
@@ -215,10 +274,17 @@ export default function ProceduresPage() {
                   </div>
 
                   <CardTitle 
-                    onClick={() => handleProcedureClick(proc)}
-                    className="text-lg uppercase cursor-pointer underline"
+                    onClick={() => !isDisabled && handleProcedureClick(proc)}
+                    className={`text-lg uppercase ${
+                      isDisabled
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "cursor-pointer underline"
+                    }`}
                   >
                     {proc.name}
+                    {isDisabled && (
+                      <Lock className="inline h-4 w-4 ml-2" />
+                    )}
                   </CardTitle>
                 </CardHeader>
               </Card>

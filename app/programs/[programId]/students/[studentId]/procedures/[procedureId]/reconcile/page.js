@@ -142,7 +142,7 @@ export default function ReconcilePage() {
         </div>
       </div>
 
-            {reconciliationData.is_already_reconciled && (
+      {reconciliationData.is_already_reconciled && (
         <Alert className="mb-4 border-yellow-500 bg-yellow-50">
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800">
